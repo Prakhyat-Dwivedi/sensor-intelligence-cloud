@@ -1,2 +1,7 @@
 __pycache__/
 *.pyc
+fastapi
+uvicorn
+pydantic
+numpy
+sckit-learn
