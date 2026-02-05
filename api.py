@@ -13,13 +13,9 @@ app.add_middleware(
 )
 
 # ==========================
-# IN-MEMORY STORE (simple)
+# IN-MEMORY STORE (PER DEVICE)
 # ==========================
-LATEST_DATA = {
-    "battery": None,
-    "wifi": None,
-    "timestamp": None
-}
+LATEST_DATA = {}   # device_id -> data
 
 # ==========================
 # ROOT (health check)
@@ -33,29 +29,37 @@ def root():
     }
 
 # ==========================
-# INGEST ENDPOINT (FIXES 404)
+# INGEST ENDPOINT
 # ==========================
 @app.post("/ingest")
 def ingest(data: dict):
-    LATEST_DATA["battery"] = data.get("battery")
-    LATEST_DATA["wifi"] = data.get("wifi")
-    LATEST_DATA["timestamp"] = time.time()
-    return {"status": "ingested"}
+    device_id = data.get("device_id", "default")
+
+    LATEST_DATA[device_id] = {
+        "battery": data.get("battery"),
+        "wifi": data.get("wifi"),
+        "timestamp": time.time()
+    }
+
+    return {
+        "status": "ingested",
+        "device_id": device_id
+    }
 
 # ==========================
 # BATTERY API
 # ==========================
 @app.get("/battery")
-def battery():
-    if not LATEST_DATA["battery"]:
+def battery(device_id: str = "default"):
+    if device_id not in LATEST_DATA:
         return {"error": "Battery data not available"}
-    return LATEST_DATA["battery"]
+    return LATEST_DATA[device_id]["battery"]
 
 # ==========================
 # WIFI API
 # ==========================
 @app.get("/wifi")
-def wifi():
-    if not LATEST_DATA["wifi"]:
+def wifi(device_id: str = "default"):
+    if device_id not in LATEST_DATA:
         return {"error": "WiFi data not available"}
-    return LATEST_DATA["wifi"]
+    return LATEST_DATA[device_id]["wifi"]
