@@ -4,6 +4,7 @@ import time
 
 app = FastAPI(title="Sentinel – Sensor Intelligence")
 
+# Allow frontend / phone access
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -11,8 +12,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-LATEST_DATA = {}
+# ==========================
+# IN-MEMORY STORE
+# ==========================
+LATEST_DATA = {
+    "battery": None,
+    "wifi": None,
+    "timestamp": None,
+    "device_id": None
+}
 
+# ==========================
+# ROOT (health check)
+# ==========================
 @app.get("/")
 def root():
     return {
@@ -21,34 +33,35 @@ def root():
         "status": "running"
     }
 
+# ==========================
+# INGEST ENDPOINT
+# ==========================
 @app.post("/ingest")
 def ingest(data: dict):
-    device_id = data.get("device_id", "default")
-    LATEST_DATA[device_id] = {
-        "battery": data.get("battery"),
-        "wifi": data.get("wifi"),
-        "timestamp": time.time()
-    }
-    return {"status": "ingested"}
-
-@app.get("/battery")
-def battery(device_id: str = "default"):
-    if device_id not in LATEST_DATA:
-        return {"available": False}
-
-    battery = LATEST_DATA[device_id]["battery"]
-    if not battery or not battery.get("available"):
-        return {"available": False}
+    LATEST_DATA["battery"] = data.get("battery")
+    LATEST_DATA["wifi"] = data.get("wifi")
+    LATEST_DATA["device_id"] = data.get("device_id")
+    LATEST_DATA["timestamp"] = time.time()
 
     return {
-        "available": True,
-        "percent": battery["percent"],
-        "charging": battery["charging"]
+        "status": "ingested",
+        "device_id": LATEST_DATA["device_id"]
     }
 
-@app.get("/wifi")
-def wifi(device_id: str = "default"):
-    if device_id not in LATEST_DATA:
-        return {"connected": False}
+# ==========================
+# BATTERY API
+# ==========================
+@app.get("/battery")
+def battery():
+    if not LATEST_DATA["battery"]:
+        return {"error": "Battery data not available"}
+    return LATEST_DATA["battery"]
 
-    return LATEST_DATA[device_id]["wifi"]
+# ==========================
+# WIFI API
+# ==========================
+@app.get("/wifi")
+def wifi():
+    if not LATEST_DATA["wifi"]:
+        return {"error": "WiFi data not available"}
+    return LATEST_DATA["wifi"]
