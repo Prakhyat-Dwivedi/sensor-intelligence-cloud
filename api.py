@@ -1,9 +1,12 @@
-from fastapi import FastAPI, Request, Query
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 import time
 
 app = FastAPI(title="Sentinel – Sensor Intelligence")
 
+# ==========================
+# CORS
+# ==========================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,19 +16,24 @@ app.add_middleware(
 
 # ==========================
 # DEVICE STORE
+# device_id -> latest data
 # ==========================
 DEVICES = {}
 
 @app.get("/")
 def root():
-    return {"status": "running"}
+    return {
+        "project": "Sentinel – Sensor Intelligence",
+        "status": "running",
+        "devices": list(DEVICES.keys())
+    }
 
 # ==========================
-# INGEST
+# INGEST (Laptop / Android)
 # ==========================
 @app.post("/ingest")
 def ingest(data: dict):
-    device_id = data.get("device_id", "unknown")
+    device_id = data.get("device_id") or "unknown"
 
     DEVICES[device_id] = {
         "battery": data.get("battery"),
@@ -34,43 +42,46 @@ def ingest(data: dict):
         "timestamp": time.time()
     }
 
-    return {"status": "ingested", "device_id": device_id}
-
+    return {
+        "status": "ingested",
+        "device_id": device_id
+    }
 
 # ==========================
-# BATTERY (FIXED)
+# COMMON FETCH FUNCTION
+# ==========================
+def get_device_data(device_id: str):
+    data = DEVICES.get(device_id)
+    if not data:
+        return None
+    return data
+
+# ==========================
+# BATTERY
 # ==========================
 @app.get("/battery")
-def battery(device_id: str = Query(...)):
-    data = DEVICES.get(device_id)
-
+def battery(device_id: str = Query("laptop")):
+    data = get_device_data(device_id)
     if not data or not data.get("battery"):
         return {"error": "Battery data not available"}
-
     return data["battery"]
 
-
 # ==========================
-# WIFI (FIXED)
+# WIFI
 # ==========================
 @app.get("/wifi")
-def wifi(device_id: str = Query(...)):
-    data = DEVICES.get(device_id)
-
+def wifi(device_id: str = Query("laptop")):
+    data = get_device_data(device_id)
     if not data or not data.get("wifi"):
         return {"error": "WiFi data not available"}
-
     return data["wifi"]
 
-
 # ==========================
-# MOBILE
+# MOBILE NETWORK
 # ==========================
 @app.get("/mobile")
-def mobile(device_id: str = Query(...)):
-    data = DEVICES.get(device_id)
-
+def mobile(device_id: str = Query("laptop")):
+    data = get_device_data(device_id)
     if not data or not data.get("mobile"):
         return {"error": "Mobile data not available"}
-
     return data["mobile"]
