@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import time
 
@@ -40,7 +40,7 @@ def ingest(data: dict):
     DEVICES[device_id] = {
         "battery": data.get("battery"),
         "wifi": data.get("wifi"),
-        "mobile": data.get("mobile"),   # NEW
+        "mobile": data.get("mobile"),
         "timestamp": time.time()
     }
 
@@ -50,23 +50,11 @@ def ingest(data: dict):
     }
 
 # ==========================
-# AUTO DEVICE DETECTION
-# Android browser → android
-# Others → laptop
-# ==========================
-def resolve_device(request: Request):
-    ua = request.headers.get("user-agent", "").lower()
-    if "android" in ua:
-        return "android"
-    return "laptop"
-
-# ==========================
 # BATTERY
 # ==========================
 @app.get("/battery")
-def battery(request: Request):
-    device = resolve_device(request)
-    data = DEVICES.get(device)
+def battery(device_id: str):
+    data = DEVICES.get(device_id)
 
     if not data or not data.get("battery"):
         return {"error": "Battery data not available"}
@@ -77,9 +65,8 @@ def battery(request: Request):
 # WIFI
 # ==========================
 @app.get("/wifi")
-def wifi(request: Request):
-    device = resolve_device(request)
-    data = DEVICES.get(device)
+def wifi(device_id: str):
+    data = DEVICES.get(device_id)
 
     if not data or not data.get("wifi"):
         return {"error": "WiFi data not available"}
@@ -87,12 +74,11 @@ def wifi(request: Request):
     return data["wifi"]
 
 # ==========================
-# MOBILE NETWORK (NEW)
+# MOBILE NETWORK
 # ==========================
 @app.get("/mobile")
-def mobile(request: Request):
-    device = resolve_device(request)
-    data = DEVICES.get(device)
+def mobile(device_id: str):
+    data = DEVICES.get(device_id)
 
     if not data or not data.get("mobile"):
         return {"error": "Mobile network data not available"}
