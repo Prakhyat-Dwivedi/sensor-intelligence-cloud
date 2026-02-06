@@ -1,12 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import time
 
 app = FastAPI(title="Sentinel – Sensor Intelligence")
 
-# ==========================
-# CORS (phone + web allowed)
-# ==========================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,93 +12,63 @@ app.add_middleware(
 )
 
 # ==========================
-# IN-MEMORY STORE
+# DEVICE STORE
 # ==========================
-LATEST_DATA = {
-    "device_id": None,
-    "timestamp": None,
-    "battery": None,
-    "wifi": None,
-    "mobile": None
-}
+DEVICES = {}
 
 # ==========================
-# ROOT (health check)
+# ROOT
 # ==========================
 @app.get("/")
 def root():
-    return {
-        "project": "Sentinel – Sensor Intelligence",
-        "version": "1.1",
-        "status": "running",
-        "last_update": LATEST_DATA["timestamp"]
-    }
+    return {"status": "running"}
 
 # ==========================
-# INGEST ENDPOINT
+# INGEST (ANDROID SENDS DATA)
 # ==========================
 @app.post("/ingest")
 def ingest(data: dict):
-    LATEST_DATA["device_id"] = data.get("device_id")
-    LATEST_DATA["battery"] = data.get("battery")
-    LATEST_DATA["wifi"] = data.get("wifi")
-    LATEST_DATA["mobile"] = data.get("mobile")
-    LATEST_DATA["timestamp"] = time.time()
+    device_id = data.get("device_id", "unknown")
 
-    return {
-        "status": "ingested",
-        "device_id": LATEST_DATA["device_id"],
-        "timestamp": LATEST_DATA["timestamp"]
+    DEVICES[device_id] = {
+        "battery": data.get("battery"),
+        "wifi": data.get("wifi"),
+        "timestamp": time.time()
     }
 
+    return {"status": "ok", "device": device_id}
+
 # ==========================
-# BATTERY API
+# AUTO DEVICE DETECTION
+# ==========================
+def resolve_device(request: Request):
+    ua = request.headers.get("user-agent", "").lower()
+    if "android" in ua:
+        return "android"
+    return "laptop"
+
+# ==========================
+# BATTERY
 # ==========================
 @app.get("/battery")
-def battery():
-    if not LATEST_DATA["battery"]:
+def battery(request: Request):
+    device = resolve_device(request)
+    data = DEVICES.get(device)
+
+    if not data or not data["battery"]:
         return {"error": "Battery data not available"}
-    return {
-        "device_id": LATEST_DATA["device_id"],
-        "timestamp": LATEST_DATA["timestamp"],
-        "battery": LATEST_DATA["battery"]
-    }
+
+    return data["battery"]
 
 # ==========================
-# WIFI API
+# WIFI
 # ==========================
 @app.get("/wifi")
-def wifi():
-    if not LATEST_DATA["wifi"]:
+def wifi(request: Request):
+    device = resolve_device(request)
+    data = DEVICES.get(device)
+
+    if not data or not data["wifi"]:
         return {"error": "WiFi data not available"}
-    return {
-        "device_id": LATEST_DATA["device_id"],
-        "timestamp": LATEST_DATA["timestamp"],
-        "wifi": LATEST_DATA["wifi"]
-    }
 
-# ==========================
-# MOBILE NETWORK API
-# ==========================
-@app.get("/mobile")
-def mobile():
-    if not LATEST_DATA["mobile"]:
-        return {"error": "Mobile network data not available"}
-    return {
-        "device_id": LATEST_DATA["device_id"],
-        "timestamp": LATEST_DATA["timestamp"],
-        "mobile": LATEST_DATA["mobile"]
-    }
-
-# ==========================
-# COMBINED STATUS API
-# ==========================
-@app.get("/status")
-def status():
-    return {
-        "device_id": LATEST_DATA["device_id"],
-        "timestamp": LATEST_DATA["timestamp"],
-        "battery": LATEST_DATA["battery"],
-        "wifi": LATEST_DATA["wifi"],
-        "mobile": LATEST_DATA["mobile"]
-    }
+    return data["wifi"]
