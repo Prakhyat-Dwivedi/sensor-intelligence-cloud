@@ -4,6 +4,9 @@ import time
 
 app = FastAPI(title="Sentinel – Sensor Intelligence")
 
+# ==========================
+# CORS
+# ==========================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,6 +16,7 @@ app.add_middleware(
 
 # ==========================
 # DEVICE STORE
+# device_id -> latest data
 # ==========================
 DEVICES = {}
 
@@ -21,10 +25,13 @@ DEVICES = {}
 # ==========================
 @app.get("/")
 def root():
-    return {"status": "running"}
+    return {
+        "project": "Sentinel – Sensor Intelligence",
+        "status": "running"
+    }
 
 # ==========================
-# INGEST (ANDROID SENDS DATA)
+# INGEST (Laptop / Android)
 # ==========================
 @app.post("/ingest")
 def ingest(data: dict):
@@ -33,13 +40,19 @@ def ingest(data: dict):
     DEVICES[device_id] = {
         "battery": data.get("battery"),
         "wifi": data.get("wifi"),
+        "mobile": data.get("mobile"),   # NEW
         "timestamp": time.time()
     }
 
-    return {"status": "ok", "device": device_id}
+    return {
+        "status": "ingested",
+        "device_id": device_id
+    }
 
 # ==========================
 # AUTO DEVICE DETECTION
+# Android browser → android
+# Others → laptop
 # ==========================
 def resolve_device(request: Request):
     ua = request.headers.get("user-agent", "").lower()
@@ -55,7 +68,7 @@ def battery(request: Request):
     device = resolve_device(request)
     data = DEVICES.get(device)
 
-    if not data or not data["battery"]:
+    if not data or not data.get("battery"):
         return {"error": "Battery data not available"}
 
     return data["battery"]
@@ -68,7 +81,20 @@ def wifi(request: Request):
     device = resolve_device(request)
     data = DEVICES.get(device)
 
-    if not data or not data["wifi"]:
+    if not data or not data.get("wifi"):
         return {"error": "WiFi data not available"}
 
     return data["wifi"]
+
+# ==========================
+# MOBILE NETWORK (NEW)
+# ==========================
+@app.get("/mobile")
+def mobile(request: Request):
+    device = resolve_device(request)
+    data = DEVICES.get(device)
+
+    if not data or not data.get("mobile"):
+        return {"error": "Mobile network data not available"}
+
+    return data["mobile"]
