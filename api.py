@@ -1,12 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 import time
 
 app = FastAPI(title="Sentinel – Sensor Intelligence")
 
-# ==========================
-# CORS
-# ==========================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,22 +13,15 @@ app.add_middleware(
 
 # ==========================
 # DEVICE STORE
-# device_id -> latest data
 # ==========================
 DEVICES = {}
 
-# ==========================
-# ROOT
-# ==========================
 @app.get("/")
 def root():
-    return {
-        "project": "Sentinel – Sensor Intelligence",
-        "status": "running"
-    }
+    return {"status": "running"}
 
 # ==========================
-# INGEST (Laptop / Android)
+# INGEST
 # ==========================
 @app.post("/ingest")
 def ingest(data: dict):
@@ -44,16 +34,14 @@ def ingest(data: dict):
         "timestamp": time.time()
     }
 
-    return {
-        "status": "ingested",
-        "device_id": device_id
-    }
+    return {"status": "ingested", "device_id": device_id}
+
 
 # ==========================
-# BATTERY
+# BATTERY (FIXED)
 # ==========================
 @app.get("/battery")
-def battery(device_id: str):
+def battery(device_id: str = Query(...)):
     data = DEVICES.get(device_id)
 
     if not data or not data.get("battery"):
@@ -61,11 +49,12 @@ def battery(device_id: str):
 
     return data["battery"]
 
+
 # ==========================
-# WIFI
+# WIFI (FIXED)
 # ==========================
 @app.get("/wifi")
-def wifi(device_id: str):
+def wifi(device_id: str = Query(...)):
     data = DEVICES.get(device_id)
 
     if not data or not data.get("wifi"):
@@ -73,14 +62,15 @@ def wifi(device_id: str):
 
     return data["wifi"]
 
+
 # ==========================
-# MOBILE NETWORK
+# MOBILE
 # ==========================
 @app.get("/mobile")
-def mobile(device_id: str):
+def mobile(device_id: str = Query(...)):
     data = DEVICES.get(device_id)
 
     if not data or not data.get("mobile"):
-        return {"error": "Mobile network data not available"}
+        return {"error": "Mobile data not available"}
 
     return data["mobile"]
