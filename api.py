@@ -20,6 +20,9 @@ app.add_middleware(
 # ==========================
 DEVICES = {}
 
+# ==========================
+# ROOT
+# ==========================
 @app.get("/")
 def root():
     return {
@@ -29,7 +32,7 @@ def root():
     }
 
 # ==========================
-# INGEST (Laptop / Android)
+# INGEST (Android / Laptop)
 # ==========================
 @app.post("/ingest")
 def ingest(data: dict):
@@ -38,7 +41,7 @@ def ingest(data: dict):
     DEVICES[device_id] = {
         "battery": data.get("battery"),
         "wifi": data.get("wifi"),
-        "mobile": data.get("mobile"),
+        "mobile": data.get("mobile"),   # mobile speed support
         "timestamp": time.time()
     }
 
@@ -48,13 +51,10 @@ def ingest(data: dict):
     }
 
 # ==========================
-# COMMON FETCH FUNCTION
+# INTERNAL HELPER
 # ==========================
 def get_device_data(device_id: str):
-    data = DEVICES.get(device_id)
-    if not data:
-        return None
-    return data
+    return DEVICES.get(device_id)
 
 # ==========================
 # BATTERY
@@ -62,8 +62,14 @@ def get_device_data(device_id: str):
 @app.get("/battery")
 def battery(device_id: str = Query("laptop")):
     data = get_device_data(device_id)
+
     if not data or not data.get("battery"):
-        return {"error": "Battery data not available"}
+        return {
+            "available": False,
+            "end_percent": 0,
+            "charging": False
+        }
+
     return data["battery"]
 
 # ==========================
@@ -72,16 +78,30 @@ def battery(device_id: str = Query("laptop")):
 @app.get("/wifi")
 def wifi(device_id: str = Query("laptop")):
     data = get_device_data(device_id)
+
     if not data or not data.get("wifi"):
-        return {"error": "WiFi data not available"}
+        return {
+            "connected": False,
+            "signal_percent": 0,
+            "ssid": "N/A"
+        }
+
     return data["wifi"]
 
 # ==========================
-# MOBILE NETWORK
+# MOBILE NETWORK (Speed Test)
 # ==========================
 @app.get("/mobile")
 def mobile(device_id: str = Query("laptop")):
     data = get_device_data(device_id)
+
     if not data or not data.get("mobile"):
-        return {"error": "Mobile data not available"}
+        return {
+            "connected": False,
+            "network_type": "N/A",
+            "download_mbps": 0,
+            "upload_mbps": 0,
+            "latency_ms": 0
+        }
+
     return data["mobile"]
